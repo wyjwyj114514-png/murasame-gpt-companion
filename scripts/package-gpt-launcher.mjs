@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const target = path.join(root, 'outputs/Project-Murasame-GPT-local-0.2.0');
+fs.mkdirSync(target, { recursive: true });
+fs.cpSync(path.join(root, 'node_modules/electron/dist'), target, { recursive: true, force: false });
+const app = path.join(target, 'resources/app');
+fs.mkdirSync(app, { recursive: true });
+fs.copyFileSync(path.join(root, 'packages/desktop/launcher.cjs'), path.join(app, 'launcher.cjs'));
+fs.writeFileSync(path.join(app, 'package.json'), JSON.stringify({ name: 'murasame-launcher', version: '0.2.0', main: 'launcher.cjs' }));
+fs.writeFileSync(path.join(app, 'launcher-config.json'), JSON.stringify({ projectRoot: root }));
+console.log('Local GUI launcher: ' + path.join(target, 'electron.exe'));

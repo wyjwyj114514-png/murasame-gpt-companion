@@ -1,0 +1,26 @@
+.whale-account-card.murasame-quota-bubble {
+  z-index:9998;pointer-events:none;
+  width:min(250px,calc(100vw - 16px),calc((100vh - 16px) * 1026 / 700));
+  aspect-ratio:1026/700;height:auto;max-height:none;padding:0;
+  border:0;border-radius:0;background:transparent;box-shadow:none;overflow:visible;
+  color:#536ba9;font:10px/1.2 system-ui;container-type:inline-size;
+}
+.murasame-quota-frame {display:block;width:100%;height:100%;pointer-events:none}
+.murasame-quota-mirrored .murasame-quota-frame {transform:scaleX(-1)}
+.murasame-quota-mirrored .murasame-quota-panel {left:28%}
+.murasame-quota-panel {
+  pointer-events:auto;
+  position:absolute;left:17%;top:14%;width:55%;height:54%;
+  overflow:visible;box-sizing:border-box;text-align:center;font-size:4cqw;line-height:1.2;
+}
+.murasame-quota-panel .whale-account-header {justify-content:center;gap:.4em;margin-bottom:.3em}
+.murasame-quota-panel .whale-account-header strong {font-size:.9em;white-space:nowrap}
+.murasame-quota-panel section {margin:.3em 0}
+.murasame-quota-panel section>strong {display:block;font-size:.9em;font-weight:600}
+.murasame-quota-panel .murasame-quota-row {margin:.3em 0 !important;gap:.5em !important}
+.murasame-quota-panel .murasame-quota-row progress {height:.6em;font-size:inherit}
+.murasame-quota-panel .murasame-quota-reset,.murasame-quota-panel .murasame-quota-updated {display:none}
+.murasame-quota-panel small {color:#8192ba;font-size:.9em;line-height:1.3}
+.murasame-quota-panel button {color:#203170;border-color:#c5cee5;padding:0 .4em;font-size:.9em;border-radius:.6em;line-height:1.2;white-space:nowrap;flex-shrink:0}
+.murasame-quota-panel p {margin:.5em 0}
+.murasame-quota-panel .murasame-quota-details {margin-top:.2em}

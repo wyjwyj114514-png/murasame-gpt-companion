@@ -1,0 +1,82 @@
+const {app,BrowserWindow}=require('electron');
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http=require('node:http'),assert=require('node:assert/strict');
+const {pathToFileURL}=require('node:url');
+const root=process.cwd(),temporary=fs.mkdtempSync(path.join(os.tmpdir(),'murasame-dsh-ui-')),output=path.join(root,'work/dsh-ui-verification');
+process.env.DSH_HOME=path.join(temporary,'data');fs.mkdirSync(process.env.DSH_HOME,{recursive:true});fs.mkdirSync(output,{recursive:true});
+fs.writeFileSync(path.join(process.env.DSH_HOME,'.dshw-size.json'),JSON.stringify({sound:false,vol:0,scale:1}));app.setPath('userData',path.join(temporary,'browser'));
+app.commandLine.appendSwitch('autoplay-policy','no-user-gesture-required');
+let window,server;const checks=[],errors=[],routes=new Map(),cleanup=[];
+app.whenReady().then(async()=>{try{
+  const effect=fn=>cleanup.push(fn()),connection={requestRejection:()=>null};
+  const ctx={connection,get:name=>name==='connection'?connection:null,on:()=>()=>{},effect,webServer:{register(route){routes.set(route.path,route);return()=>{};},tapIndex:()=>()=>{}}};
+  const plugin=(await import(pathToFileURL(path.join(root,'dist/dsh-murasame-local/lib/index.js')).href)).default;
+  plugin.apply({effect,on:()=>()=>{},inject:(names,callback)=>callback(ctx)});
+  server=http.createServer(async(req,res)=>{try{
+    if(req.url==='/'){res.writeHead(200,{'Content-Type':'text/html;charset=utf-8'});res.end('<!doctype html><meta charset="utf-8"><style>body{background:#202124;color:white;font:14px system-ui}#root{height:95vh}textarea{position:absolute;bottom:20px;width:50%}</style><div id="root"><h2>DSH 隔离页面回归</h2><textarea placeholder="聊天输入"></textarea></div><script defer src="/dsh-whale/widget.js"></script>');return;}
+    if(req.url.startsWith('/dsh-whale/balance.json')){res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,balance:42.83,currency:'CNY',total_balance:'42.83'}));return;}
+    const route=routes.get(req.url.split('?')[0]);if(!route){res.writeHead(404);res.end();return;}await route.handler(req,res);
+  }catch{res.writeHead(500);res.end();}});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  window=new BrowserWindow({show:false,width:1100,height:850,webPreferences:{contextIsolation:true,nodeIntegration:false}});
+  window.webContents.on('render-process-gone',()=>errors.push('renderer-gone'));
+  const ev=code=>window.webContents.executeJavaScript(code),delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  const wait=async(code,label)=>{for(let i=0;i<100;i++){if(await ev(code))return;await delay(100);}throw Error(label);};
+  await window.loadURL('http://127.0.0.1:'+server.address().port+'/');
+  await wait("window.MurasameVoicePlayer?.libraryManager.initialized&&document.querySelector('.dshwv-img')?.naturalWidth>0",'DSH character and library initialize');
+  assert.equal(await ev('window.MurasameVoicePlayer.tracks.length'),503);checks.push('DSH built plugin mounts character and all 503 tracks');
+  await ev("document.querySelector('.dshwv-menu-btn').click();document.querySelector('.murasame-library-manager').open=true;window.MurasameVoicePlayer.configure({volume:0,mode:'sequence',enabled:true})");
+  await ev(`window.__rightClickPet=()=>{const image=document.querySelector('.dshwv-img'),r=image.getBoundingClientRect(),canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const c=canvas.getContext('2d');c.drawImage(image,0,0);const data=c.getImageData(0,0,canvas.width,canvas.height).data;for(let y=Math.floor(canvas.height*.35);y<canvas.height*.65;y++)for(let x=Math.floor(canvas.width*.4);x<canvas.width*.6;x++)if(data[(y*canvas.width+x)*4+3]>240){image.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,button:2,clientX:r.left+x/canvas.width*r.width,clientY:r.top+y/canvas.height*r.height}));return;}};window.__rightClickPet()`);
+  await wait("!document.querySelector('.dshwv-menu').classList.contains('dshwv-menu-open')",'DSH right click closes menu with visible menu button');await ev('window.__rightClickPet()');
+  await wait("document.querySelector('.dshwv-menu').classList.contains('dshwv-menu-open')",'DSH right click reopens menu');checks.push('DSH right click toggles the menu with the menu button visible');
+  for(const [width,height]of [[770,700],[450,560],[1100,850]]){
+    window.setSize(width,height);await delay(250);
+    await wait("(()=>{const m=document.querySelector('.dshwv-menu'),r=m.getBoundingClientRect();return r.top>=7&&r.left>=7&&r.bottom<=innerHeight-7&&r.right<=innerWidth-7&&m.scrollHeight>m.clientHeight})()",'DSH tall settings stay in viewport '+width+'x'+height);
+    assert.equal(await ev("getComputedStyle(document.querySelector('.dshwv-menu')).backgroundColor"),'rgb(252, 252, 255)');
+  }
+  await ev("document.body.style.height='2000px';window.scrollTo(0,500)");await delay(100);
+  await wait("(()=>{const r=document.querySelector('.dshwv-menu').getBoundingClientRect();return r.top>=7&&r.bottom<=innerHeight-7})()",'DSH page scroll does not move menu outside viewport');
+  checks.push('DSH opaque tall settings remain inside resized windows and page scroll; excess content scrolls within the panel');
+  const beforeMove=await ev("document.querySelector('.dshwv-img').getBoundingClientRect().left");
+  await ev(`(()=>{const image=document.querySelector('.dshwv-img'),r=image.getBoundingClientRect(),canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;const context=canvas.getContext('2d');context.drawImage(image,0,0);const pixels=context.getImageData(0,0,canvas.width,canvas.height).data;let point;for(let y=Math.floor(canvas.height*.35);y<canvas.height*.65&&!point;y++)for(let x=Math.floor(canvas.width*.4);x<canvas.width*.6;x++)if(pixels[(y*canvas.width+x)*4+3]>240){point={x:r.left+x/canvas.width*r.width,y:r.top+y/canvas.height*r.height};break;}if(!point)throw Error('No opaque drag pixel');const event=(type,x,y,buttons)=>new PointerEvent(type,{bubbles:true,clientX:x,clientY:y,pointerId:1,pointerType:'mouse',button:0,buttons});image.dispatchEvent(event('pointerdown',point.x,point.y,1));document.dispatchEvent(event('pointermove',point.x-500,point.y-350,1));document.dispatchEvent(event('pointerup',point.x-500,point.y-350,0));})()`);
+  await wait(`(()=>{const m=document.querySelector('.dshwv-menu').getBoundingClientRect(),p=document.querySelector('.dshwv-img').getBoundingClientRect();return Math.abs(p.left-${beforeMove})>20&&(Math.abs(m.left-p.right-8)<2||Math.abs(p.left-m.right-8)<2)&&m.top>=7&&m.right<=innerWidth-7&&m.bottom<=innerHeight-7})()`,'DSH menu stays 8 pixels from actual character after movement');
+  checks.push('DSH settings follow changes to the pet position without needing a window resize');
+  await ev("document.querySelector('.dshwv-menu').scrollTop=0");await delay(400);
+  const slider=await ev("(()=>{const s=document.querySelector('[aria-label=\"丛雨大小\"]'),r=s.getBoundingClientRect(),m=document.querySelector('.dshwv-menu').getBoundingClientRect();return{x:r.x,y:r.y+r.height/2,w:r.width,level:Number(s.value),menu:[m.x,m.y]}})()");
+  const point=level=>({x:Math.round(slider.x+8+(slider.w-16)*(level-1)/19),y:Math.round(slider.y)});
+  window.webContents.debugger.attach('1.3');
+  const mouse=async(type,level,buttons)=>window.webContents.debugger.sendCommand('Input.dispatchMouseEvent',{type,...point(level),button:buttons?'left':'none',buttons,clickCount:type==='mouseMoved'?0:1});
+  await mouse('mouseMoved',slider.level,0);await mouse('mousePressed',slider.level,1);
+  const levels=[];
+  for(const level of [6,10,15]){await mouse('mouseMoved',level,1);await delay(120);
+    const sample=await ev("(()=>{const r=document.querySelector('.dshwv-menu').getBoundingClientRect();return{level:Number(document.querySelector('[aria-label=\"丛雨大小级别\"]').value),x:r.x,y:r.y}})()");levels.push(sample.level);assert.ok(Math.abs(sample.x-slider.menu[0])<=1&&Math.abs(sample.y-slider.menu[1])<=1,'DSH menu remains stationary while dragging size '+JSON.stringify({slider,sample}));}
+  await window.webContents.debugger.sendCommand('Input.dispatchMouseEvent',{type:'mouseReleased',...point(15),button:'left',buttons:0,clickCount:1});window.webContents.debugger.detach();
+  assert.ok(levels.every(level=>level>1&&level<20)&&levels[0]<levels[1]&&levels[1]<levels[2],JSON.stringify(levels));
+  await ev(`(()=>{const n=document.querySelector('[aria-label="丛雨大小级别"]');n.value=${slider.level};n.dispatchEvent(new Event('input'));n.dispatchEvent(new Event('change'))})()`);await delay(250);
+  checks.push('real mouse drag produces intermediate size levels and preserves menu position; menu uses the image bounds rather than transparent root padding');
+  fs.writeFileSync(path.join(output,'settings-fit.png'),(await window.webContents.capturePage()).toPNG());
+  await ev("[...document.querySelectorAll('.murasame-library button')].find(b=>b.textContent==='播放一段').click()");
+  await wait("window.MurasameVoicePlayer.currentId==='001.mp3'&&window.MurasameVoicePlayer.audio.ended",'DSH first track plays and ends');
+  assert.equal(await ev('window.MurasameVoicePlayer.currentId'),'001.mp3');
+  await ev("[...document.querySelectorAll('.murasame-library button')].find(b=>b.textContent==='播放一段').click()");await wait("window.MurasameVoicePlayer.currentId==='002.mp3'",'DSH next click advances');
+  await ev("document.querySelector('[aria-label=\"收藏语音 2\"]').click();[...document.querySelectorAll('.murasame-library button')].find(b=>b.textContent.startsWith('收藏夹（')).click();document.querySelector('[aria-label=\"试听语音 2\"]').click()");
+  await wait("window.MurasameVoicePlayer.currentId==='002.mp3'&&window.MurasameVoicePlayer.lastPlayedId==='002.mp3'&&!window.MurasameVoicePlayer.audio.paused",'DSH favorite plays');checks.push('DSH sequence advances only per click; favorite control saves and plays');
+  await ev("document.querySelector('[aria-label=\"选定语音 2\"]').click()");assert.equal(await ev("document.querySelector('.voice-state:not(.murasame-library-manager .voice-state)').textContent.includes('选定第 2 段')"),true);
+  await ev("document.querySelector('[aria-label=\"选定语音 2\"]').click();window.MurasameVoicePlayer.configure({mode:'single'})");
+  assert.equal(await ev("window.MurasameVoicePlayer.selectedId===null&&document.querySelector('[aria-label=\"选定语音 2\"]').getAttribute('aria-pressed')==='false'&&document.querySelector('.voice-state:not(.murasame-library-manager .voice-state)').textContent.includes('跟随最近播放第 2 段')"),true);
+  await ev("[...document.querySelectorAll('.murasame-library button')].find(b=>b.textContent==='播放一段').click()");await wait("window.MurasameVoicePlayer.currentId==='002.mp3'&&!window.MurasameVoicePlayer.audio.paused",'DSH deselected single mode follows recent audio');checks.push('DSH selected number is visible; repeated selection unlocks and plays the most recent voice');
+  await ev(`(async()=>{const bytes=await(await fetch('/murasame/voice/001.mp3')).arrayBuffer(),files=new DataTransfer();for(const name of ['10.mp3','2.mp3'])files.items.add(new File([bytes],name,{type:'audio/mpeg'}));document.querySelector('[aria-label="整套语音库文件"]').files=files.files;document.querySelector('[aria-label="语音库名称"]').value='DSH 测试角色';[...document.querySelectorAll('.murasame-library-manager button')].find(b=>b.textContent==='保存为新语音库').click()})()`);
+  await wait("window.MurasameVoicePlayer.libraryManager.activeId!=='builtin'&&!window.MurasameVoicePlayer.libraryManager.busy",'DSH library import commits');
+  const id=await ev('window.MurasameVoicePlayer.libraryManager.activeId');assert.deepEqual(await ev('window.MurasameVoicePlayer.tracks.map(t=>t.label)'),['2.mp3','10.mp3']);assert.equal(await ev('window.MurasameVoicePlayer.favoriteIds.size'),0);
+  await ev("window.MurasameVoicePlayer.setFavorite('001.mp3',true);document.querySelector('[aria-label=\"试听语音 1\"]').click()");await wait("window.MurasameVoicePlayer.audio.src.startsWith('blob:')&&!window.MurasameVoicePlayer.audio.paused",'DSH custom saved audio plays');
+  await ev("document.querySelector('[aria-label=\"语音库名称\"]').value='DSH 改名测试';[...document.querySelectorAll('.murasame-library-manager button')].find(b=>b.textContent==='重命名').click()");await wait("window.MurasameVoicePlayer.libraryManager.name()==='DSH 改名测试'&&!window.MurasameVoicePlayer.libraryManager.busy",'DSH library rename');
+  await new Promise(resolve=>{window.webContents.once('did-finish-load',resolve);window.webContents.reload();});
+  await wait(`window.MurasameVoicePlayer?.libraryManager.initialized&&window.MurasameVoicePlayer.libraryManager.activeId===${JSON.stringify(id)}`,'DSH reload restores selected library');
+  assert.equal(await ev("window.MurasameVoicePlayer.favoriteIds.has('001.mp3')&&window.MurasameVoicePlayer.libraryManager.name()==='DSH 改名测试'"),true);checks.push('DSH real IndexedDB library import, numeric sorting, audio decoding/playback, rename and reload persistence');
+  await ev("document.querySelector('.dshwv-menu-btn').click();document.querySelector('.murasame-library-manager').open=true;[...document.querySelectorAll('.murasame-library-manager button')].find(b=>b.textContent==='切回内置丛雨库').click()");await wait("window.MurasameVoicePlayer.libraryManager.activeId==='builtin'&&!window.MurasameVoicePlayer.libraryManager.busy",'DSH restore built-in');assert.equal(await ev("window.MurasameVoicePlayer.favoriteIds.has('002.mp3')&&window.MurasameVoicePlayer.tracks.length===503"),true);
+  await ev(`(()=>{const select=document.querySelector('[aria-label="切换整套语音库"]');select.value=${JSON.stringify(id)};select.dispatchEvent(new Event('change'))})()`);await wait("window.MurasameVoicePlayer.libraryManager.activeId!=='builtin'&&!window.MurasameVoicePlayer.libraryManager.busy",'DSH switch library');
+  await ev("[...document.querySelectorAll('.murasame-library-manager button')].find(b=>b.textContent==='删除此库').click();[...document.querySelectorAll('.murasame-library-manager button')].find(b=>b.textContent==='确认删除此语音库').click()");await wait("window.MurasameVoicePlayer.libraryManager.activeId==='builtin'&&window.MurasameVoicePlayer.libraryManager.libraries.length===0&&!window.MurasameVoicePlayer.libraryManager.busy",'DSH confirmed delete');checks.push('DSH restoring built-in recovers independent favorites; confirmed deletion preserves built-in voices');
+  await ev("[...document.querySelectorAll('.dshwv-menu button')].find(b=>b.textContent==='管理').click()");await wait("document.querySelector('.dshwv-resmask')?.checkVisibility()&&document.querySelector('.dshwv-resmask').textContent.includes('暂无自定义音频')",'DSH resource manager loaded');assert.equal(await ev("/小黄鸭|petpet|money1/.test(document.querySelector('.dshwv-resmask').textContent)"),false);checks.push('DSH resource browser excludes legacy read-only presets');
+  fs.writeFileSync(path.join(output,'resources.png'),(await window.webContents.capturePage()).toPNG());assert.equal(errors.length,0);
+  fs.writeFileSync(path.join(output,'report.json'),JSON.stringify({ok:true,at:new Date().toISOString(),checks,scope:'real DSH plugin routes and widget in isolated Electron chat page; not the running DSH client'},null,2));
+  for(const dispose of cleanup.reverse())if(typeof dispose==='function')dispose();server.close();window.destroy();app.exit(0);
+}catch(error){const layout=window?await window.webContents.executeJavaScript("(()=>{const m=document.querySelector('.dshwv-menu');return {menu:m?.getBoundingClientRect().toJSON(),scroll:m?.scrollHeight,client:m?.clientHeight,viewport:[innerWidth,innerHeight],root:document.querySelector('.dshwv-root')?.getBoundingClientRect().toJSON()}})()").catch(()=>null):null;fs.writeFileSync(path.join(output,'report.json'),JSON.stringify({ok:false,error:error.stack,checks,errors,layout},null,2));if(window)fs.writeFileSync(path.join(output,'failure.png'),(await window.webContents.capturePage()).toPNG());app.exit(1);}});

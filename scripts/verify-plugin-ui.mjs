@@ -1,0 +1,10 @@
+import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import fs from 'node:fs';
+import path from 'node:path';
+const report=path.resolve('work/plugin-verification/ui.json'),start=Date.now();
+const env={...process.env,MURASAME_TEST_NODE:process.execPath};delete env.ELECTRON_RUN_AS_NODE;
+const child=spawn(path.resolve('node_modules/electron/dist/electron.exe'),[path.resolve('packages/chatgpt-plugin/verify-ui.cjs')],{env,windowsHide:true,stdio:'ignore'});
+const timer=setTimeout(()=>child.kill(),55000);const [code]=await once(child,'exit');clearTimeout(timer);
+if(code!==0||fs.statSync(report).mtimeMs<start)throw Error('Plugin UI verifier failed or report is stale');
+const result=JSON.parse(fs.readFileSync(report,'utf8'));if(!result.ok)throw Error(result.error);console.log(JSON.stringify(result));

@@ -1,0 +1,20 @@
+{
+  "name": "murasame-gpt-companion",
+  "version": "0.5.0-beta.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "preview": "node scripts/preview.mjs",
+    "desktop": "electron packages/desktop/main.cjs",
+    "build:dsh": "node scripts/build-dsh.mjs",
+    "build:gpt": "node scripts/build-gpt.mjs && node scripts/build-gpt-parity.mjs --promote",
+    "gpt": "node scripts/start-gpt.mjs",
+    "setup": "node scripts/setup-upstreams.mjs",
+    "init:assets": "node scripts/init-local-assets.mjs"
+  },
+  "devDependencies": {
+    "electron": "^44.9.1"
+  },
+  "license": "MIT"
+}

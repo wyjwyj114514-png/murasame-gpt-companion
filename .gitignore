@@ -1,0 +1,8 @@
+work/
+private-assets/
+node_modules/
+upstream/
+dist/
+outputs/
+*.log
+.DS_Store

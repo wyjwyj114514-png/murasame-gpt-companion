@@ -1,0 +1,10 @@
+{
+  "name": "murasame-chatgpt-plugin",
+  "version": "0.4.3",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@modelcontextprotocol/ext-apps": "2.0.3"
+  }
+}

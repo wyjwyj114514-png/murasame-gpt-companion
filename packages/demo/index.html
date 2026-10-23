@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project Murasame · 丛雨语音</title><link rel="stylesheet" href="style.css"></head>
+<body><main>
+<header><span class="eyebrow">PROJECT MURASAME · 0.1</span><h1>点一下，丛雨回应你。</h1><p>开启语音，点击角色。每一轮，都是不同的「ご主人」。</p></header>
+<section class="stage"><button id="pet" aria-label="点击丛雨播放随机语音"><img id="character" src="/local/character.png" alt="丛雨角色"><span id="placeholder" hidden>请导入角色图片</span></button><p id="status" role="status">正在加载本地资源…</p></section>
+<section class="settings"><label class="switch"><span>点击语音</span><input id="enabled" type="checkbox"></label><label>音量 <output id="volume-value">70%</output><input id="volume" type="range" min="0" max="100" value="70"></label><div class="imports"><label class="file">导入语音<input id="audio-files" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a" multiple></label><label class="file">更换角色<input id="image-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></label></div><p id="library">尚未导入语音</p></section>
+<footer>语音默认关闭 · 拖动不会播放 · 连点切换至下一段<br>本地素材不随公开源码分发。通过文件选择导入的资源关闭窗口后需重新选择。</footer>
+</main><script type="module" src="app.mjs"></script></body></html>

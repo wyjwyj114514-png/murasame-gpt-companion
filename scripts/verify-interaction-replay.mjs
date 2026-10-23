@@ -1,0 +1,18 @@
+import {SessionParser,SessionReader} from '../dist/gpt-murasame-parity/runtime/session-monitor.mjs';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const line=payload=>JSON.stringify({type:'response_item',timestamp:new Date().toISOString(),payload});
+const question=id=>line({type:'function_call',name:'functions.request_user_input_async',call_id:id,arguments:'{}'});
+const observations=[],parser=new SessionParser({id:'replay',onWait:state=>observations.push(state)});
+parser.prime([question('history'),JSON.stringify({type:'event_msg',payload:{type:'task_started'}}),question('current')]);
+assert.equal(observations.length,1);assert.equal(observations[0].pending.id,'current');
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'murasame-wait-')),file=path.join(root,'session.jsonl'),events=[];
+fs.writeFileSync(file,JSON.stringify({type:'session_meta',payload:{id:'test'}})+'\n'+question('pending')+'\n');
+const reader=new SessionReader({root,onWait:item=>events.push(item)});reader.tick(true);
+assert.equal(events.at(-1).pending.id,'pending');
+fs.appendFileSync(file,line({type:'function_call_output',call_id:'pending',output:'accepted'})+'\n');reader.tick();assert.equal(events.at(-1).pending.id,'pending');
+fs.appendFileSync(file,line({type:'message',role:'user',content:[{type:'input_text',text:'<send_user_message_question_reply>'+JSON.stringify([{questionItemId:JSON.stringify(['request_user_input_async','pending',0])}])+'</send_user_message_question_reply>'}]})+'\n');reader.tick();assert.equal(events.at(-1).pending,null);
+fs.mkdirSync('work',{recursive:true});fs.writeFileSync('work/interaction-replay.json',JSON.stringify({ok:true,primeEmitsOneSnapshot:true,acceptedKeepsAsyncWait:true,matchingReplyClearsWait:true,privateTextReturned:false},null,2));
+console.log('SessionParser bootstrap and SessionReader append/reply replay passed.');

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>小丛雨</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px;font:14px/1.5 system-ui;color:#536ba9;background:transparent}main{max-width:360px;margin:auto;text-align:center}h1{font-size:16px}button{cursor:pointer;border:1px solid #c5cee5;border-radius:8px;background:#fff;color:#203170;padding:4px 10px}#pet{border:0;background:transparent;padding:0}#pet img{width:230px;max-width:100%;display:block}#bubble{position:relative;width:100%;aspect-ratio:1026/700}#bubble svg{position:absolute;inset:0;width:100%;height:100%}#quota{position:absolute;left:17%;top:14%;width:55%;height:54%;font-size:12px;line-height:1.3;display:flex;flex-direction:column;justify-content:center;gap:5px}#quota p{margin:0}section{margin:2px 0}.row{display:flex;align-items:center;gap:7px}.remaining{color:#15803d;font-weight:700;white-space:nowrap}progress{accent-color:#15803d;flex:1;min-width:0;height:7px}strong{font-size:11px}.settings{display:flex;gap:12px;align-items:center;justify-content:center;font-size:12px}input[type=range]{width:90px}#status{font-size:11px;min-height:2em}#refresh{font-size:11px}#updated{font-size:10px;color:#8192ba}
+</style>
+<main><h1>狗修金，丛雨在这里</h1>
+<button id="test-pip">测试内置画中画</button><p id="pip-result" role="status">画中画尚未测试 · 0.4.3</p>
+<div id="bubble"><svg viewBox="0 0 1026 700" aria-hidden="true"><path fill="white" stroke="#203170" stroke-width="18" stroke-linejoin="round" d="M 827 248 A 373 232 0 1 0 81 246 A 373 232 0 0 0 301 465 A 57 32 10 0 0 413 484 A 373 232 0 0 0 827 248 Z"/><ellipse cx="352" cy="561" rx="37.5" ry="26" fill="white" stroke="#203170" stroke-width="18"/><ellipse cx="442" cy="646" rx="24.5" ry="18" fill="white" stroke="#203170" stroke-width="18"/></svg><div id="quota"><p>点击丛雨查看剩余额度</p></div></div>
+<button id="pet" aria-label="点击丛雨查看额度并播放语音"><img src="__CHARACTER__" alt="带底座的小丛雨"></button>
+<div><button id="refresh">刷新额度</button></div><div id="updated"></div>
+<div class="settings"><label><input id="voice" type="checkbox">点击语音</label><label>音量 <input id="volume" type="range" min="0" max="100" value="40"></label></div>
+<div class="settings"><label>气泡自动消失 <input id="bubble-seconds" aria-label="气泡自动消失秒数" type="number" min="0" max="600" step="1" style="width:58px"> 秒（0 为不关闭）</label></div><p id="status" role="status">正在准备丛雨……</p></main>
+<script>
+__BUBBLE_TIMER__
+__VOICE_ENGINE__
+const bubbleTimer=new BubbleTimer({storage:localStorage}),bubbleSeconds=document.getElementById('bubble-seconds');
+const waitingText=document.createElement('p');waitingText.id='waiting';waitingText.setAttribute('role','status');waitingText.style.cssText='position:absolute;left:17%;top:22%;width:55%;font-weight:700';waitingText.hidden=true;document.getElementById('bubble').append(waitingText);
+bubbleSeconds.value=bubbleTimer.seconds;
+function openBubble(){document.getElementById('bubble').style.visibility='visible';bubbleTimer.open(()=>{document.getElementById('bubble').style.visibility='hidden';});}
+bubbleSeconds.onchange=()=>{bubbleSeconds.value=bubbleTimer.configure(bubbleSeconds.value);};
+const byId=id=>document.getElementById(id),pending=new Map();let sequence=0;
+const status=byId('status'),voice=byId('voice'),volume=byId('volume');
+try{if(!localStorage.getItem('murasame.voice'))localStorage.setItem('murasame.voice',JSON.stringify({enabled:localStorage.getItem('murasame-panel-voice')==='true',volume:Number(localStorage.getItem('murasame-panel-volume')||40)/100}));}catch{}
+const voicePlayer=new VoicePlayer({resolveUrl:async id=>{const track=await call('get_voice',{id});return 'data:'+track.mime+';base64,'+track.data;}});
+window.MurasameVoicePlayer=voicePlayer;
+function syncVoice(){voice.checked=voicePlayer.enabled;volume.value=voicePlayer.volume*100;volume.disabled=!voice.checked;}
+voicePlayer.subscribe(syncVoice);syncVoice();
+voice.onchange=()=>voicePlayer.configure({enabled:voice.checked});
+volume.oninput=()=>voicePlayer.configure({volume:Number(volume.value)/100});
+const libraryHost=document.createElement('details');libraryHost.append(Object.assign(document.createElement('summary'),{textContent:'语音目录与播放模式'}));byId('status').before(libraryHost);mountVoiceControls(voicePlayer,libraryHost);
+function request(method,params){return new Promise((resolve,reject)=>{const id=++sequence,timer=setTimeout(()=>{pending.delete(id);reject(Error('连接暂时未响应，请重试'));},20000);pending.set(id,{resolve,reject,timer});parent.postMessage({jsonrpc:'2.0',id,method,params},'*');});}
+let hostContext={};
+addEventListener('message',event=>{if(event.source!==parent||event.data?.jsonrpc!=='2.0')return;if(event.data.method==='ui/notifications/host-context-changed'){Object.assign(hostContext,event.data.params);return;}if(event.data.method)return;const item=pending.get(event.data.id);if(item){clearTimeout(item.timer);pending.delete(event.data.id);event.data.error?item.reject(Error(event.data.error.message||'丛雨暂时无法连接')):item.resolve(event.data.result);}});
+const ready=request('ui/initialize',{appInfo:{name:'murasame-companion',version:'0.4.3'},appCapabilities:{availableDisplayModes:['inline','pip']},protocolVersion:'2026-01-26'}).then(result=>{hostContext=result.hostContext||{};parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized',params:{}},'*');status.textContent='点击丛雨，查看剩余额度';});
+byId('test-pip').onclick=async()=>{
+  const button=byId('test-pip'),result=byId('pip-result');button.disabled=true;result.dataset.outcome='pending';result.textContent='正在请求客户端内置画中画……';
+  try{
+    await ready;let response;
+    if(typeof window.openai?.requestDisplayMode==='function')response=await window.openai.requestDisplayMode({mode:'pip'});
+    else if(hostContext.availableDisplayModes?.includes('pip'))response=await request('ui/request-display-mode',{mode:'pip'});
+    else{result.dataset.outcome='unsupported';result.textContent='当前客户端没有开放画中画接口，内置悬浮尚不可用。';return;}
+    await new Promise(resolve=>setTimeout(resolve,700));
+    const mode=window.openai?.displayMode||response?.mode||hostContext.displayMode;
+    result.dataset.outcome=mode==='pip'?'pip':mode?'fallback':'unconfirmed';
+    result.textContent=mode==='pip'?'客户端已确认进入内置画中画，请检查能否拖动。':mode?'客户端返回 '+mode+' 模式，未进入画中画。':'请求已返回，但客户端尚未确认画中画，不能判定成功。';
+  }catch(error){result.dataset.outcome='error';result.textContent='画中画请求失败：'+error.message;}
+  finally{button.disabled=false;}
+};
+ready.catch(error=>status.textContent=error.message);
+async function call(name,args={}){await ready;const result=await request('tools/call',{name,arguments:args});if(result.isError)throw Error('暂时读取失败，请重试');return result.structuredContent;}
+let quotaEpoch=0;
+async function refresh(){const epoch=++quotaEpoch;try{const data=await call('get_quota');if(epoch!==quotaEpoch)return;const host=byId('quota');host.replaceChildren();if(!data.available){host.textContent=data.reason||'暂时无法读取额度';return;}for(const item of data.windows){const section=document.createElement('section'),title=document.createElement('strong'),row=document.createElement('div'),label=document.createElement('span'),meter=document.createElement('progress');title.textContent=item.windowDurationMins===300?'5 小时额度':item.windowDurationMins===10080?'每周额度':item.label;row.className='row';label.className='remaining';label.textContent='剩余 '+(100-item.usedPercent).toFixed(1)+'%'+(item.stale?'（旧）':'');meter.max=100;meter.value=100-item.usedPercent;meter.setAttribute('aria-label',title.textContent+'剩余');section.title='重置：'+new Date(item.resetsAt*1000).toLocaleString();row.append(label,meter);section.append(title,row);host.append(section);}byId('updated').textContent='更新：'+new Date(data.observedAt).toLocaleTimeString();}catch(error){if(epoch===quotaEpoch)status.textContent=error.message;}}
+byId('refresh').onclick=()=>{waitingText.hidden=true;byId('quota').style.visibility='';openBubble();refresh();};
+byId('pet').onclick=async()=>{openBubble();refresh();try{const track=await voicePlayer.play();if(track.id)status.textContent='正在播放第 '+(voicePlayer.tracks.findIndex(t=>t.id===track.id)+1)+' 段 · '+(voicePlayer.mode==='random'?'本轮还有 '+track.remaining+' 段语音':'每次点击播放一段');else if(track.reason==='empty')status.textContent='请启用语音，或重新选定单曲';}catch{status.textContent='语音暂未播放，请再点一次丛雨';}};
+let lastWaitId='',activityBusy=false;
+async function pollActivity(){if(activityBusy||document.hidden)return;activityBusy=true;try{const data=await call('get_activity');if(!data.ok)return;const item=data.pending;if(!item){lastWaitId='';waitingText.hidden=true;byId('quota').style.visibility='';return;}if(item.id===lastWaitId)return;lastWaitId=item.id;waitingText.textContent=item.kind==='approval'?'狗修金，需要你确认授权':'狗修金，等你回答一下';waitingText.hidden=false;byId('quota').style.visibility='hidden';openBubble();}catch{}finally{activityBusy=false;}}
+byId('pet').addEventListener('click',()=>{waitingText.hidden=true;byId('quota').style.visibility='';});
+ready.then(()=>{pollActivity();setInterval(pollActivity,1500);});
+ready.then(async()=>{try{const library=await call('get_voice_library');await voicePlayer.libraryManager.initialize(library.tracks.map(id=>({id,url:'',previousIds:library.previousTrackIds?.[id]})),library);}catch{status.textContent='语音目录暂未读取，请重新打开面板';}});
+</script></html>
