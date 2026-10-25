@@ -10,7 +10,7 @@ test('关闭气泡或订阅点击开关后仍发出语音事件，且不回退�
 });
 
 test('点击同时触发语音和余额；狗修金称呼不污染原模板；可恢复原气泡队列', () => {
-  const original = [{ type: 'text', text: '老大' }, { type: 'balance', tpl: '{balance_ds}' }];
+  const original = [{ type: 'text', text: '老大', size: 8 }, { type: 'balance', size: 20, tpl: '{balance_ds}' }];
   const events = [], scenes = [];
   const context = { window: {}, document: { dispatchEvent: e => events.push(e.type) }, CustomEvent: class { constructor(type) { this.type = type; } },
     root: {}, BUBBLE_MS: 5000, bubbleRoundOn: false, bubbleSeqIdx: 0, bubbleDefaultFirstModules: () => original,
@@ -20,6 +20,9 @@ test('点击同时触发语音和余额；狗修金称呼不污染原模板；�
   context.whaleClick();
   assert.deepEqual(events, ['murasame:pet-click']);
   assert.equal(scenes[0][0].text, '狗修金，你的余额');
+  assert.equal(scenes[0][0].size, 4);
+  assert.equal(scenes[0][1].size, 20);
+  assert.equal(original[0].size, 8);
   assert.equal(scenes[0][1].tpl, '{balance_ds}');
   assert.equal(original[0].text, '老大');
   assert.equal(context.bubbleSeqIdx, 1);

@@ -28,7 +28,7 @@ export function customizeWidget(text) {
     bubbleRoundOn = true; bubbleSeqIdx = 1;
     var murasameModules = JSON.parse(JSON.stringify(bubbleDefaultFirstModules()));
     var murasameGreeting = murasameModules.find(function(m) { return m.type === 'text'; });
-    if (murasameGreeting) murasameGreeting.text = '狗修金，你的余额';
+    if (murasameGreeting) { murasameGreeting.text = '狗修金，你的余额'; murasameGreeting.size = 4; }
     sceneOpen('custom', function() { bubbleRenderModules(murasameModules); }, BUBBLE_MS);
     return;
   }
