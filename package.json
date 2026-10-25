@@ -11,7 +11,8 @@
     "build:gpt": "node scripts/build-gpt.mjs && node scripts/build-gpt-parity.mjs --promote",
     "gpt": "node scripts/start-gpt.mjs",
     "setup": "node scripts/setup-upstreams.mjs",
-    "init:assets": "node scripts/init-local-assets.mjs"
+    "init:assets": "node scripts/init-local-assets.mjs",
+    "test:quota-layout": "electron scripts/verify-quota-layout.cjs"
   },
   "devDependencies": {
     "electron": "^44.9.1"

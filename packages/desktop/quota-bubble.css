@@ -10,17 +10,17 @@
 .murasame-quota-mirrored .murasame-quota-panel {left:28%}
 .murasame-quota-panel {
   pointer-events:auto;
-  position:absolute;left:17%;top:14%;width:55%;height:54%;
-  overflow:visible;box-sizing:border-box;text-align:center;font-size:4cqw;line-height:1.2;
+  position:absolute;left:17%;top:10%;width:55%;height:54%;
+  overflow:visible;box-sizing:border-box;text-align:center;font-size:4cqw;line-height:1.05;
 }
-.murasame-quota-panel .whale-account-header {justify-content:center;gap:.4em;margin-bottom:.3em}
+.murasame-quota-panel .whale-account-header {justify-content:center;gap:.4em;margin-bottom:.1em}
 .murasame-quota-panel .whale-account-header strong {font-size:.9em;white-space:nowrap}
-.murasame-quota-panel section {margin:.3em 0}
-.murasame-quota-panel section>strong {display:block;font-size:.9em;font-weight:600}
-.murasame-quota-panel .murasame-quota-row {margin:.3em 0 !important;gap:.5em !important}
+.murasame-quota-panel section {margin:0}
+.murasame-quota-panel section>strong {display:block;font-size:.9em;font-weight:600;line-height:1.05}
+.murasame-quota-panel .murasame-quota-row {margin:.1em 0 !important;gap:.5em !important;line-height:1.05}
 .murasame-quota-panel .murasame-quota-row progress {height:.6em;font-size:inherit}
-.murasame-quota-panel .murasame-quota-reset,.murasame-quota-panel .murasame-quota-updated {display:none}
-.murasame-quota-panel small {color:#8192ba;font-size:.9em;line-height:1.3}
-.murasame-quota-panel button {color:#203170;border-color:#c5cee5;padding:0 .4em;font-size:.9em;border-radius:.6em;line-height:1.2;white-space:nowrap;flex-shrink:0}
+.murasame-quota-panel .murasame-quota-reset {display:block} .murasame-quota-panel .murasame-quota-updated {display:none}
+.murasame-quota-panel small {color:#8192ba;font-size:.9em;line-height:1.05}
+.murasame-quota-panel button {color:#203170;border-color:#c5cee5;padding:0 .4em;font-size:.9em;border-radius:.6em;line-height:1.05;white-space:nowrap;flex-shrink:0}
 .murasame-quota-panel p {margin:.5em 0}
 .murasame-quota-panel .murasame-quota-details {margin-top:.2em}
