@@ -14,7 +14,7 @@
   overflow:visible;box-sizing:border-box;text-align:center;font-size:4cqw;line-height:1.05;
 }
 .murasame-quota-panel .whale-account-header {justify-content:center;gap:.4em;margin-bottom:.1em}
-.murasame-quota-panel .whale-account-header strong {font-size:.9em;white-space:nowrap}
+.murasame-quota-panel .whale-account-header strong {font-size:3.42cqw;white-space:nowrap}
 .murasame-quota-panel section {margin:0}
 .murasame-quota-panel section>strong {display:block;font-size:.9em;font-weight:600;line-height:1.05}
 .murasame-quota-panel .murasame-quota-row {margin:.1em 0 !important;gap:.5em !important;line-height:1.05}
@@ -24,3 +24,7 @@
 .murasame-quota-panel button {color:#203170;border-color:#c5cee5;padding:0 .4em;font-size:.9em;border-radius:.6em;line-height:1.05;white-space:nowrap;flex-shrink:0}
 .murasame-quota-panel p {margin:.5em 0}
 .murasame-quota-panel .murasame-quota-details {margin-top:.2em}
+
+/* Keep the additional announcement inside the classic bubble. */
+.murasame-quota-panel .murasame-tibo {display:block;white-space:nowrap;font-size:.9em;line-height:1.05;color:#536ba9}
+.murasame-quota-panel:has(.murasame-tibo) {font-size:3.8cqw;top:11%}

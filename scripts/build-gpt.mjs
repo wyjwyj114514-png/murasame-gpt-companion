@@ -161,3 +161,10 @@ pkg.name = 'project-murasame-gpt'; pkg.version = '0.2.0';
 pkg.codexBuild = 'murasame-codex-parity-20261020';
 fs.writeFileSync(pkgFile, JSON.stringify(pkg, null, 2) + '\n');
 console.log('Built GPT companion: ' + target);
+
+// MURASAME_TIBO_RESET
+fs.copyFileSync(path.join(root,'packages/desktop/tibo-reset.mjs'),path.join(target,'runtime/tibo-reset.mjs'));
+patch('runtime/dispatcher.mjs',"import fs from 'node:fs';","import fs from 'node:fs';\nimport { createTiboReader } from './tibo-reset.mjs';");
+patch('runtime/dispatcher.mjs',"  const quota = createQuotaReader();","  const quota = createQuotaReader();\n  const tibo = createTiboReader();");
+patch('runtime/dispatcher.mjs',"      if (url.pathname === '/api/insights' && method === 'GET')","      if (url.pathname === '/api/tibo-reset' && method === 'GET') return jsonResult(200, await tibo.get());\n      if (url.pathname === '/api/insights' && method === 'GET')");
+patch('desktop/ui/account-view.js',"const tokens = sub.tokens || data.tokens || {};","const tiboLine = text(content, 'small', 'Tibo：读取中'); tiboLine.className='murasame-tibo';\n      fetch('/api/tibo-reset', {cache:'no-store'}).then(async r=>{if(!r.ok)throw Error('network');return r.json()}).then(info=>{\n        if(own!==generation || !tiboLine.isConnected)return;\n        const d=Number(info.scheduledAt), valid=Number.isFinite(d)&&d>0;\n        const when=valid?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(d)):'';\n        const label=info.status==='announced'?'预告':info.status==='pending'?'待确认':info.status==='none'?'暂无预告':'暂不可读';\n        tiboLine.textContent='Tibo '+label+(when?' '+when:'')+(info.stale?'（旧）':'');\n        tiboLine.title='第三方 WhenReset 公告；预告不代表已生效。'+(info.stale?'上次成功读取，可能过期。':'');\n        position();\n      }).catch(()=>{if(own===generation&&tiboLine.isConnected)tiboLine.textContent='Tibo 暂不可读';});\n      const tokens = sub.tokens || data.tokens || {};");
